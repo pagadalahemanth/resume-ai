@@ -1,0 +1,65 @@
+/* Tailwind's base styles */
+@tailwind base;
+
+/* Tailwind's component classes */
+@tailwind components;
+
+/* Tailwind's utility classes */
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  body {
+    @apply min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+  }
+}
+
+/* Custom components */
+@layer components {
+  /* Example of a custom component class */
+  .btn-primary {
+    @apply px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 
+           transition-colors duration-200 focus:outline-none focus:ring-2 
+           focus:ring-primary-500 focus:ring-offset-2;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  /* Example of a custom utility class */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+How to use Tailwind classes in your components:
+
+1. Direct utility classes:
+   <div className="flex items-center justify-between p-4">
+
+2. Responsive design:
+   <div className="w-full md:w-1/2 lg:w-1/3">
+
+3. Hover/Focus states:
+   <button className="bg-blue-500 hover:bg-blue-600 focus:ring-2">
+
+4. Dark mode:
+   <div className="bg-white dark:bg-gray-800">
+
+5. Custom components (defined above):
+   <button className="btn-primary">
+
+6. Combining utilities:
+   <div className="flex items-center space-x-4 p-4 bg-white shadow-md rounded-lg">
+
+7. Custom utilities (defined above):
+   <div className="scrollbar-hide">
+*/
