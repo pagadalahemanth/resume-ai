@@ -7,6 +7,7 @@ import * as dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
 import filesRoutes from './routes/files.js';
+import analysisRoutes from './routes/analysis.js';
 
 // Load environment variables
 dotenv.config()
@@ -22,6 +23,7 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use('/analysis', analysisRoutes);
 
 // Session configuration
 app.use(session({
@@ -34,6 +36,12 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }))
+console.log('Registered routes:');
+app._router.stack.forEach((r: any) => {
+  if (r.route) {
+    console.log(r.route.path, r.route.methods);
+  }
+});
 
 // Initialize Passport
 app.use(passport.initialize())

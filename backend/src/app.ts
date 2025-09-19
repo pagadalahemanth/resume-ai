@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import uploadRoutes from './routes/upload.js';
-import analysisRoutes from './routes/analysis.js';
+import analysisRoutes from './routes/analysis';
 
 const app = express();
 
