@@ -61,15 +61,23 @@ const AnalysisPage: React.FC = () => {
         setError(null);
         console.log('Making API call to:', `${import.meta.env.VITE_API_URL}/analysis/resume/${resumeId}`);
         
+        // const response = await axios.get(    
+        //   `${import.meta.env.VITE_API_URL}/analysis/resume/${resumeId}`,
+        //   { 
+        //     timeout: 30000,
+        //     headers: {
+        //       'Accept': 'application/json'
+        //     }
+        //   }
+        // );
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/analysis/resume/${resumeId}`,
-          { 
-            timeout: 30000,
-            headers: {
-              'Accept': 'application/json'
-            }
-          }
-        );
+  `${import.meta.env.VITE_API_URL}/analysis/resume/${resumeId}`,
+  { 
+    timeout: 30000,
+    headers: { 'Accept': 'application/json' }
+  }
+);
+
 
         if (response.data.success) {
           setAnalysis(response.data.data);

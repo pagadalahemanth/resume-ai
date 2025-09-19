@@ -215,7 +215,7 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/" element={user ? <UploadPage /> : <Navigate to="/login" />} />
             <Route path="/review" element={user ? <Review /> : <Navigate to="/login" />} />
-            <Route path="/analysis/:resumeId" element={user ? <AnalysisPage /> : <Navigate to="/login" />} />
+<Route path="/analysis/resume/:resumeId" element={user ? <AnalysisPage /> : <Navigate to="/login" />} />
             <Route path="/history" element={user ? <History /> : <Navigate to="/login" />} />
             <Route path="/admin" element={user?.isAdmin ? <Admin /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />

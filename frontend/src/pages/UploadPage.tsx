@@ -13,7 +13,8 @@ export const UploadPage = () => {
   const { uploadStatus, uploadFile } = useFileUpload({
     onSuccess: (resumeId) => {
       console.log('Upload successful, navigating to analysis with ID:', resumeId);
-      navigate(`/analysis/${resumeId}`);
+      // navigate(`/analysis/resume/${resumeId}`);
+      navigate(`/analysis/resume/${resumeId}`);
     },
     onError: (error) => {
       console.error('Upload error:', error);

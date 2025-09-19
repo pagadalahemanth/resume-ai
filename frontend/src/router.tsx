@@ -7,8 +7,8 @@ export const router = createBrowserRouter([
     path: '/',
     element: <UploadPage />
   },
-  {
-    path: '/analysis/:resumeId',
-    element: <AnalysisPage />
-  }
+{
+  path: '/analysis/resume/:resumeId',
+  element: <AnalysisPage />
+}
 ]);
