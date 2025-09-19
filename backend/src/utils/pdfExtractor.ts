@@ -1,4 +1,4 @@
-import pdfjs from 'pdfjs-dist';
+import * as pdfjs from 'pdfjs-dist';
 
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   // Load PDF document
