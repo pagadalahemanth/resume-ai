@@ -1,91 +1,38 @@
 import { useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useApp } from '../App'
-
-// Types
-interface UploadUrlResponse {
-  uploadUrl: string
-  key: string
-}
-
-const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+import { useFileUpload } from '../hooks/useFileUpload'
 
 export const UploadPage = () => {
   const { user } = useApp()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-
-  // File validation
-  const validateFile = (file: File): string | null => {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return 'Only PDF and DOCX files are allowed'
+  
+  const { uploadStatus, uploadFile } = useFileUpload({
+    onSuccess: (resumeId) => {
+      console.log('Upload successful, navigating to analysis with ID:', resumeId);
+      navigate(`/analysis/${resumeId}`);
+    },
+    onError: (error) => {
+      console.error('Upload error:', error);
+      toast.error(error.message);
+    },
+    validationRules: {
+      maxSize: 10 * 1024 * 1024, // 10MB
+      allowedTypes: [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ]
     }
-    if (file.size > MAX_FILE_SIZE) {
-      return 'File size must be less than 10MB'
-    }
-    return null
-  }
+  })
 
-  // Upload process
-  const uploadFile = async (file: File) => {
-    try {
-      setIsUploading(true)
-      setUploadProgress(0)
-
-      // Step 1: Get presigned URL
-      const { data: { uploadUrl, key } } = await axios.post<UploadUrlResponse>(
-        '/api/upload-url',
-        {
-          fileName: file.name,
-          contentType: file.type
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-
-      // Step 2: Upload to S3
-      await axios.put(uploadUrl, file, {
-        headers: {
-          'Content-Type': file.type
-        },
-        onUploadProgress: (progressEvent) => {
-          const progress = progressEvent.total
-            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            : 0
-          setUploadProgress(progress)
-        }
-      })
-
-      // Step 3: Notify backend about successful upload
-      await axios.post('/api/notify-upload', { key })
-
-      toast.success('Resume uploaded successfully!')
-      navigate(`/review?key=${key}`)
-    } catch (error) {
-      console.error('Upload error:', error)
-      toast.error('Failed to upload resume. Please try again.')
-    } finally {
-      setIsUploading(false)
-      setUploadProgress(0)
-    }
-  }
+  const isUploading = uploadStatus.status === 'uploading' || uploadStatus.status === 'processing'
+  const uploadProgress = uploadStatus.progress
 
   // Handle file selection
   const handleFile = async (file: File) => {
-    const error = validateFile(file)
-    if (error) {
-      toast.error(error)
-      return
-    }
     await uploadFile(file)
   }
 

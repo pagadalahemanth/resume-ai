@@ -1,15 +1,85 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User model with OAuth support
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  picture       String?   // Profile picture URL from OAuth
+  googleId      String?   @unique
+  isAdmin       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  resumes       Resume[]  // One-to-many relationship with Resume
+  reviews       Review[]  // One-to-many relationship with Review
+}
+
+// Resume model to store uploaded files and their metadata
+model Resume {
+  id            String    @id @default(cuid())
+  userId        String
+  fileName      String
+  fileKey       String    @unique // S3/R2 storage key
+  fileSize      Int
+  fileType      String    // MIME type (PDF/DOCX)
+  parsedText    String?   @db.Text // Extracted text content
+  analysis      Json?     // Analysis results in JSON format
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews       Review[]  // One-to-many relationship with Review
+  @@index([userId])
+}
+
+// Review model for storing AI analysis results
+model Review {
+  id                String    @id @default(cuid())
+  userId           String
+  resumeId         String
+  overallScore     Float     // 0-100 score
+  formatScore      Float     // Formatting score
+  contentScore     Float     // Content quality score
+  atsScore         Float     // ATS compatibility score
+  keywordScore     Float     // Keyword optimization score
+  feedback         Json      // Structured feedback and suggestions
+  suggestions      Json      // AI-generated improvements
+  linkedInFeedback Json?     // Optional LinkedIn profile feedback
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume           Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  analytics        Analytics[]
+  @@index([userId])
+  @@index([resumeId])
+}
+
+// Analytics model for tracking improvements and stats
+model Analytics {
+  id             String    @id @default(cuid())
+  reviewId       String
+  type           String    // e.g., 'score_improvement', 'feedback_applied'
+  value          Float     // Numeric value for the analytic
+  metadata       Json?     // Additional context or data
+  createdAt      DateTime  @default(now())
+  review         Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  @@index([reviewId])
+}
+
+// System Settings for admin configuration
+model Settings {
+  id             String    @id @default(cuid())
+  key            String    @unique
+  value          Json
+  updatedAt      DateTime  @updatedAt
 }
