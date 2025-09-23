@@ -4,16 +4,16 @@ import { extractTextFromPDF } from '../utils/pdfExtractor.js';
 import { extractTextFromDOCX } from '../utils/docxExtractor.js';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getS3Client } from '../lib/s3.js';
-import prisma from '../lib/prisma.js';
+import { prisma } from '../lib/prisma.js';
 
 const router = Router();
 const s3Client = getS3Client();
-const analyzer = new ResumeAnalyzer(process.env.OPENAI_API_KEY || '');
+const analyzer = new ResumeAnalyzer(process.env.GOOGLE_API_KEY || '');
 
 // Helper function to download file from S3
 async function downloadFromS3(fileKey: string): Promise<Buffer> {
   const command = new GetObjectCommand({
-    Bucket: process.env.AWS_S3_BUCKET || '',
+    Bucket: process.env.S3_BUCKET_NAME || '',
     Key: fileKey
   });
 
@@ -35,24 +35,20 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
 async function storeAnalysisResults(resumeId: string, analysis: any): Promise<void> {
   await prisma.resume.update({
     where: { id: resumeId },
-    data: {
-      analysis: JSON.stringify(analysis)
-    }
+    data: { analysis },  // ✅ stores JSON directly
   });
 }
+
 
 // Helper function to get stored analysis
 async function getStoredAnalysis(resumeId: string) {
   const resume = await prisma.resume.findUnique({
     where: { id: resumeId }
   });
-  
-  if (!resume?.analysis) {
-    return null;
-  }
-  
-  return JSON.parse(resume.analysis);
+
+  return resume?.analysis ?? null;
 }
+
 
 // Get or create analysis for a resume
 router.get('/resume/:resumeId', async (req, res) => {

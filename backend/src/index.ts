@@ -23,7 +23,6 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use('/analysis', analysisRoutes);
 
 // Session configuration
 app.use(session({
@@ -36,12 +35,6 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }))
-console.log('Registered routes:');
-app._router.stack.forEach((r: any) => {
-  if (r.route) {
-    console.log(r.route.path, r.route.methods);
-  }
-});
 
 // Initialize Passport
 app.use(passport.initialize())
@@ -51,6 +44,7 @@ app.use(passport.session())
 app.use('/auth', authRoutes)
 app.use('/upload', uploadRoutes)
 app.use('/files', filesRoutes)
+app.use('/analysis', analysisRoutes)
 
 // Health check
 app.get('/health', (req, res) => {
@@ -78,6 +72,29 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Something went wrong!' })
 })
 
+// Start server and log registered routes after everything is set up
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)
+  
+  // Now log the registered routes after the server is fully initialized
+  console.log('Registered routes:');
+  if (app._router && app._router.stack) {
+    app._router.stack.forEach((r: any) => {
+      if (r.route && r.route.path) {
+        console.log(`${Object.keys(r.route.methods).join(',').toUpperCase()} ${r.route.path}`);
+      } else if (r.name === 'router') {
+        // This handles route groups (like /auth/*, /upload/*, etc.)
+        r.handle.stack.forEach((nestedRoute: any) => {
+          if (nestedRoute.route) {
+            const basePath = r.regexp.source
+              .replace('\\', '')
+              .replace('(?=\\/|$)', '')
+              .replace('^', '')
+              .replace('/i', '');
+            console.log(`${Object.keys(nestedRoute.route.methods).join(',').toUpperCase()} ${basePath}${nestedRoute.route.path}`);
+          }
+        });
+      }
+    });
+  }
 })
