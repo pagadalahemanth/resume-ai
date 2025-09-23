@@ -50,7 +50,11 @@ export const generateDownloadUrl = async (key: string): Promise<string> => {
   }
 }
 
+// Export the S3Client instance for use in other modules
+export const getS3Client = () => s3Client
+
 export default {
   generateUploadUrl,
-  generateDownloadUrl
+  generateDownloadUrl,
+  getS3Client
 }

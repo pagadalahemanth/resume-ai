@@ -1,16 +1,16 @@
-import OpenAI from 'openai';
 import type { AnalysisResult, DetailedAnalysis, Improvement, Insight, MarketAlignmentData } from './types.js';
 
 export class ResumeAnalyzer {
-  private openai: OpenAI;
+  private apiKey: string;
+  private baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
   
   constructor(apiKey: string) {
-    this.openai = new OpenAI({ apiKey });
+    this.apiKey = apiKey;
   }
 
   async analyzeResume(resumeText: string): Promise<AnalysisResult> {
     try {
-      console.log('Starting resume analysis...');
+      console.log('Starting Google Gemini resume analysis...');
       
       const analysis = await this.performDetailedAnalysis(resumeText);
       console.log('Detailed analysis complete');
@@ -31,230 +31,190 @@ export class ResumeAnalyzer {
         marketAlignment
       };
     } catch (error) {
-      console.error('Resume analysis failed:', error);
+      console.error('Google Gemini resume analysis failed:', error);
       throw new Error('Failed to analyze resume: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 
+  private async callGeminiAPI(prompt: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('Invalid response format from Gemini API');
+    }
+
+    const textContent = data.candidates[0].content.parts[0].text;
+try {
+  return JSON.parse(textContent);
+} catch (parseError) {
+  // Remove Markdown fences if present
+  const jsonMatch = textContent.match(/```json\n?([\s\S]*?)\n?```/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[1]);
+  }
+
+  // Try any JSON object in the string
+  const objectMatch = textContent.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    return JSON.parse(objectMatch[0]);
+  }
+
+  // Last fallback: trim and retry
+  try {
+    return JSON.parse(textContent.trim());
+  } catch {
+    throw new Error("Could not parse JSON from Gemini response: " + textContent);
+  }
+}
+
+  }
+
   private async performDetailedAnalysis(resumeText: string): Promise<DetailedAnalysis> {
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        response_format: { type: "json_object" },
-        messages: [{
-          role: 'system',
-          content: 'You are a professional resume analyzer. Provide detailed scoring and analysis in JSON format.'
-        }, {
-          role: 'user',
-          content: `Analyze this resume comprehensively and provide detailed scoring:
+    const prompt = `Analyze this resume comprehensively and provide detailed scoring. Return ONLY a valid JSON object with these exact fields:
 
 Resume:
 ${resumeText}
 
-Provide a detailed analysis with these exact fields:
+Return a JSON object with this structure:
 {
-  "impactScore": number (1-100),
-  "clarityScore": number (1-100),
-  "achievementScore": number (1-100),
-  "skillsRelevance": number (1-100),
-  "overallScore": number (1-100),
+  "impactScore": [number from 1-100],
+  "clarityScore": [number from 1-100], 
+  "achievementScore": [number from 1-100],
+  "skillsRelevance": [number from 1-100],
+  "overallScore": [number from 1-100],
   "sectionScores": {
-    "summary": number,
-    "experience": number,
-    "education": number,
-    "skills": number
+    "summary": [number from 1-100],
+    "experience": [number from 1-100],
+    "education": [number from 1-100],
+    "skills": [number from 1-100]
   }
-}`
-        }],
-        temperature: 0.7
-      });
+}
 
-      // gpt-4-turbo-preview returns JSON in response.choices[0].message.content or response.choices[0].message.function_call.arguments
-      let result;
-      const content = completion.choices[0]?.message?.content;
-      if (content) {
-        try {
-          result = JSON.parse(content);
-        } catch (e) {
-          // Try to extract JSON substring if content is not pure JSON
-          const match = content.match(/\{[\s\S]*\}/);
-          result = match ? JSON.parse(match[0]) : {};
-        }
-      } else if (completion.choices[0]?.message?.function_call?.arguments) {
-        result = JSON.parse(completion.choices[0].message.function_call.arguments);
-      } else {
-        result = {};
-      }
+Provide only the JSON object, no additional text or explanation.`;
 
-      // Validate response format
-      if (!this.isValidDetailedAnalysis(result)) {
-        throw new Error('Invalid analysis format received from OpenAI');
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Detailed analysis failed:', error);
-      throw error;
+    const result = await this.callGeminiAPI(prompt);
+    
+    if (!this.isValidDetailedAnalysis(result)) {
+      throw new Error('Invalid analysis format received from Gemini API');
     }
+
+    return result;
   }
 
-  private async generateImprovements(resumeText: string, analysis: DetailedAnalysis): Promise<Improvement[]> {
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        response_format: { type: "json_object" },
-        messages: [{
-          role: 'system',
-          content: 'Generate specific improvements for the resume in JSON array format.'
-        }, {
-          role: 'user',
-          content: `Based on this resume and analysis scores, provide improvements:
+private async generateImprovements(resumeText: string, analysis: DetailedAnalysis): Promise<{ improvements: Improvement[] }> {
+  const prompt = `Analyze this resume and suggest improvements. 
+Return ONLY a valid JSON object in this format:
 
-Resume: ${resumeText}
-Analysis: ${JSON.stringify(analysis)}
-
-Return an array of improvements in this exact format:
-[{
-  "section": string,
-  "original": string,
-  "suggestion": string,
-  "reason": string,
-  "priority": "high" | "medium" | "low",
-  "category": "impact" | "clarity" | "skills" | "achievement" | "structure"
-}]`
-        }],
-        temperature: 0.7
-      });
-
-      let improvements;
-      const content = completion.choices[0]?.message?.content;
-      if (content) {
-        try {
-          improvements = JSON.parse(content);
-        } catch (e) {
-          // Try to extract JSON array
-          const match = content.match(/\[.*\]/s);
-          improvements = match ? JSON.parse(match[0]) : [];
-        }
-      } else if (completion.choices[0]?.message?.function_call?.arguments) {
-        improvements = JSON.parse(completion.choices[0].message.function_call.arguments);
-      } else {
-        improvements = [];
-      }
-
-      if (!Array.isArray(improvements)) {
-        throw new Error('Invalid improvements format received from OpenAI');
-      }
-
-      return improvements;
-    } catch (error) {
-      console.error('Improvements generation failed:', error);
-      throw error;
+{
+  "improvements": [
+    {
+      "area": "string",
+      "suggestion": "string",
+      "priority": "low" | "medium" | "high"
     }
+  ]
+}
+
+Resume:
+${resumeText}
+
+Analysis:
+${JSON.stringify(analysis)}
+
+Provide only the JSON object, no explanations or markdown.`;
+
+  const raw = await this.callGeminiAPI(prompt);
+
+  let parsed: any;
+  try {
+    parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    throw new Error("Gemini returned non-JSON response");
   }
+
+  if (Array.isArray(parsed)) {
+    parsed = { improvements: parsed };
+  }
+
+  if (!parsed.improvements || !Array.isArray(parsed.improvements)) {
+    console.error("Gemini response (invalid format):", parsed);
+    throw new Error("Invalid improvements format received from Gemini API");
+  }
+
+  return parsed;
+}
+
+
 
   private async generateInsights(resumeText: string, analysis: DetailedAnalysis): Promise<Insight[]> {
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        response_format: { type: "json_object" },
-        messages: [{
-          role: 'system',
-          content: 'Generate strategic insights for the resume in JSON array format.'
-        }, {
-          role: 'user',
-          content: `Generate strategic insights for this resume:
+    const prompt = `Generate strategic insights for this resume. Return ONLY a valid JSON array:
 
 Resume: ${resumeText}
 Analysis: ${JSON.stringify(analysis)}
 
-Return an array of insights in this exact format:
+Return a JSON array of insights in this exact format:
 [{
   "type": "strength" | "weakness" | "opportunity" | "gap",
-  "description": string,
-  "actionItems": string[]
-}]`
-        }],
-        temperature: 0.7
-      });
+  "description": "string",
+  "actionItems": ["string", "string", "string"]
+}]
 
-      let insights;
-      const content = completion.choices[0]?.message?.content;
-      if (content) {
-        try {
-          insights = JSON.parse(content);
-        } catch (e) {
-          // Try to extract JSON array
-          const match = content.match(/\[.*\]/s);
-          insights = match ? JSON.parse(match[0]) : [];
-        }
-      } else if (completion.choices[0]?.message?.function_call?.arguments) {
-        insights = JSON.parse(completion.choices[0].message.function_call.arguments);
-      } else {
-        insights = [];
-      }
+Provide only the JSON array, no additional text or explanation.`;
 
-      if (!Array.isArray(insights)) {
-        throw new Error('Invalid insights format received from OpenAI');
-      }
-
-      return insights;
-    } catch (error) {
-      console.error('Insights generation failed:', error);
-      throw error;
+    const result = await this.callGeminiAPI(prompt);
+    
+    if (!Array.isArray(result)) {
+      throw new Error('Invalid insights format received from Gemini API');
     }
+
+    return result;
   }
 
   private async analyzeMarketAlignment(resumeText: string): Promise<MarketAlignmentData> {
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        response_format: { type: "json_object" },
-        messages: [{
-          role: 'system',
-          content: 'Analyze market alignment of the resume and provide results in JSON format.'
-        }, {
-          role: 'user',
-          content: `Analyze market alignment for this resume:
+    const prompt = `Analyze market alignment for this resume. Return ONLY a valid JSON object:
 
 ${resumeText}
 
-Return the analysis in this exact format:
+Return a JSON object in this exact format:
 {
-  "roleAlignment": number (0-100),
-  "missingKeywords": string[],
-  "industryTrends": string[],
-  "recommendedSkills": string[]
-}`
-        }],
-        temperature: 0.7
-      });
+  "roleAlignment": [number from 0-100],
+  "missingKeywords": ["string", "string", "string"],
+  "industryTrends": ["string", "string", "string"],
+  "recommendedSkills": ["string", "string", "string"]
+}
 
-      let marketAlignment;
-      const content = completion.choices[0]?.message?.content;
-      if (content) {
-        try {
-          marketAlignment = JSON.parse(content);
-        } catch (e) {
-          // Try to extract JSON object
-          const match = content.match(/\{[\s\S]*\}/);
-          marketAlignment = match ? JSON.parse(match[0]) : {};
-        }
-      } else if (completion.choices[0]?.message?.function_call?.arguments) {
-        marketAlignment = JSON.parse(completion.choices[0].message.function_call.arguments);
-      } else {
-        marketAlignment = {};
-      }
+Provide only the JSON object, no additional text or explanation.`;
 
-      if (!this.isValidMarketAlignment(marketAlignment)) {
-        throw new Error('Invalid market alignment format received from OpenAI');
-      }
-
-      return marketAlignment;
-    } catch (error) {
-      console.error('Market alignment analysis failed:', error);
-      throw error;
+    const result = await this.callGeminiAPI(prompt);
+    
+    if (!this.isValidMarketAlignment(result)) {
+      throw new Error('Invalid market alignment format received from Gemini API');
     }
+
+    return result;
   }
 
   private isValidDetailedAnalysis(analysis: any): analysis is DetailedAnalysis {

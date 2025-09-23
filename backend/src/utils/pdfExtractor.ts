@@ -1,23 +1,17 @@
-import * as pdfjs from 'pdfjs-dist';
+import pdfParse from "pdf-parse";
 
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  // Load PDF document
-  const data = new Uint8Array(buffer);
-  const loadingTask = pdfjs.getDocument(data);
-  const pdf = await loadingTask.promise;
+  try {
+    const data = await pdfParse(buffer);
 
-  let fullText = '';
+    if (data.text && data.text.trim().length > 50) {
+      console.log(`✅ Extracted ${data.text.length} characters from PDF`);
+      return data.text.trim();
+    }
 
-  // Extract text from each page
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item: any) => item.str)
-      .join(' ');
-    
-    fullText += pageText + '\n';
+    throw new Error("Extracted PDF text is too short.");
+  } catch (error) {
+    console.error("PDF extraction error:", error);
+    throw new Error("Failed to extract text from PDF. Try uploading DOCX instead.");
   }
-
-  return fullText.trim();
 }

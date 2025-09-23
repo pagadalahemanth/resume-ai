@@ -2,7 +2,8 @@ import { Router } from 'express'
 import passport from 'passport'
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20'
 import jwt from 'jsonwebtoken'
-import { PrismaClient } from '@prisma/client'
+// import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../../generated/prisma/index.js'
 
 const prisma = new PrismaClient();
 
