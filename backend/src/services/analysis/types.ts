@@ -11,13 +11,17 @@ export interface AnalysisResult {
   marketAlignment: MarketAlignmentData;
 }
 
+// Updated to match what Gemini API actually returns
 export interface Improvement {
-  section: string;
-  original: string;
-  suggestion: string;
-  reason: string;
+  area: string;           // Changed from 'section' to 'area'
+  suggestion: string;     // This stays the same
   priority: 'high' | 'medium' | 'low';
-  category: 'impact' | 'clarity' | 'skills' | 'achievement' | 'structure';
+  
+  // Optional fields that might be added later
+  section?: string;
+  original?: string;
+  reason?: string;
+  category?: 'impact' | 'clarity' | 'skills' | 'achievement' | 'structure';
 }
 
 export interface Insight {

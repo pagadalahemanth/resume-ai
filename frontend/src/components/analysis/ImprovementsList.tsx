@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Improvement {
-  section: string;
-  original: string;
+  area: string;           // Updated to match API response
   suggestion: string;
-  reason: string;
   priority: 'high' | 'medium' | 'low';
-  category: 'impact' | 'clarity' | 'skills' | 'achievement' | 'structure';
+  
+  // Optional fields for backward compatibility
+  section?: string;
+  original?: string;
+  reason?: string;
+  category?: 'impact' | 'clarity' | 'skills' | 'achievement' | 'structure';
 }
 
 interface ImprovementsListProps {
@@ -18,11 +21,17 @@ export const ImprovementsList: React.FC<ImprovementsListProps> = ({ improvements
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
 
-  const categories = ['all', 'impact', 'clarity', 'skills', 'achievement', 'structure'];
+  // Get unique categories from improvements
+  const categories = ['all', ...Array.from(new Set(
+    improvements.map(imp => imp.category || 'general').filter(Boolean)
+  ))];
+  
   const priorities = ['all', 'high', 'medium', 'low'];
 
   const filteredImprovements = improvements.filter((improvement) => {
-    const categoryMatch = selectedCategory === 'all' || improvement.category === selectedCategory;
+    const categoryMatch = selectedCategory === 'all' || 
+      (improvement.category === selectedCategory) || 
+      (selectedCategory === 'general' && !improvement.category);
     const priorityMatch = selectedPriority === 'all' || improvement.priority === selectedPriority;
     return categoryMatch && priorityMatch;
   });
@@ -40,8 +49,19 @@ export const ImprovementsList: React.FC<ImprovementsListProps> = ({ improvements
     }
   };
 
+  if (!improvements || improvements.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Improvements Found</h3>
+        <p className="text-gray-600">Your resume analysis didn't return any specific improvements.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
+      <h2 className="text-2xl font-bold mb-6">Resume Improvements</h2>
+      
       <div className="mb-6 flex flex-wrap gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Category</label>
@@ -85,7 +105,7 @@ export const ImprovementsList: React.FC<ImprovementsListProps> = ({ improvements
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-500">
-                  {improvement.section}
+                  {improvement.area || improvement.section || 'General'}
                 </span>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityColor(
@@ -95,51 +115,69 @@ export const ImprovementsList: React.FC<ImprovementsListProps> = ({ improvements
                   {improvement.priority}
                 </span>
               </div>
+              
               <div className="mt-4">
-                <div className="rounded-md bg-gray-50 p-4">
-                  <p className="text-sm text-gray-700">{improvement.original}</p>
-                </div>
-                <div className="mt-4 flex items-center">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                    />
-                  </svg>
-                </div>
+                {improvement.original && (
+                  <>
+                    <div className="rounded-md bg-gray-50 p-4">
+                      <p className="text-sm text-gray-700">{improvement.original}</p>
+                    </div>
+                    <div className="mt-4 flex items-center">
+                      <svg
+                        className="h-5 w-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                        />
+                      </svg>
+                    </div>
+                  </>
+                )}
+                
                 <div className="rounded-md bg-green-50 p-4">
                   <p className="text-sm text-green-700">{improvement.suggestion}</p>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-gray-600">{improvement.reason}</p>
-              <div className="mt-4">
-                <span
-                  className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-medium ${
-                    improvement.category === 'impact'
-                      ? 'bg-purple-100 text-purple-800'
-                      : improvement.category === 'clarity'
-                      ? 'bg-blue-100 text-blue-800'
-                      : improvement.category === 'skills'
-                      ? 'bg-green-100 text-green-800'
-                      : improvement.category === 'achievement'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {improvement.category}
-                </span>
-              </div>
+              
+              {improvement.reason && (
+                <p className="mt-4 text-sm text-gray-600">{improvement.reason}</p>
+              )}
+              
+              {improvement.category && (
+                <div className="mt-4">
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-medium ${
+                      improvement.category === 'impact'
+                        ? 'bg-purple-100 text-purple-800'
+                        : improvement.category === 'clarity'
+                        ? 'bg-blue-100 text-blue-800'
+                        : improvement.category === 'skills'
+                        ? 'bg-green-100 text-green-800'
+                        : improvement.category === 'achievement'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    {improvement.category}
+                  </span>
+                </div>
+              )}
             </motion.div>
           ))}
         </motion.div>
       </AnimatePresence>
+
+      {filteredImprovements.length === 0 && (
+        <div className="text-center py-8">
+          <p className="text-gray-600">No improvements match the selected filters.</p>
+        </div>
+      )}
     </div>
   );
 };
