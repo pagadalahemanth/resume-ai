@@ -188,12 +188,18 @@ function App() {
     checkAuth()
   }, [])
 
+  // Fixed logout function with correct API URL
   const logout = async () => {
     try {
-      await axios.post('/api/auth/logout')
-      setUser(null)
+      // Call the backend logout endpoint with correct URL
+      await axios.post(`${import.meta.env.VITE_API_URL}/auth/logout`)
     } catch (error) {
       console.error('Logout failed:', error)
+    } finally {
+      // Always clear local state regardless of API call success
+      setUser(null)
+      localStorage.removeItem('auth_token')
+      delete axios.defaults.headers.common['Authorization']
     }
   }
 
@@ -215,7 +221,7 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/" element={user ? <UploadPage /> : <Navigate to="/login" />} />
             <Route path="/review" element={user ? <Review /> : <Navigate to="/login" />} />
-<Route path="/analysis/resume/:resumeId" element={user ? <AnalysisPage /> : <Navigate to="/login" />} />
+            <Route path="/analysis/resume/:resumeId" element={user ? <AnalysisPage /> : <Navigate to="/login" />} />
             <Route path="/history" element={user ? <History /> : <Navigate to="/login" />} />
             <Route path="/admin" element={user?.isAdmin ? <Admin /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
@@ -227,3 +233,4 @@ function App() {
 }
 
 export default App
+
