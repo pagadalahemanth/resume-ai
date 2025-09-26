@@ -45,12 +45,10 @@ export class ResumeAnalyzer {
         },
         body: JSON.stringify({
           contents: [{
-            parts: [{
-              text: prompt
-            }]
+            parts: [{ text: prompt }]
           }],
           generationConfig: {
-            temperature: 0.3, // Lower temperature for more consistent output
+            temperature: 0.3,
             maxOutputTokens: 2048,
           }
         })
@@ -58,20 +56,16 @@ export class ResumeAnalyzer {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini API error response:', errorText);
         throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
       
       if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-        console.error('Invalid Gemini API response structure:', data);
         throw new Error('Invalid response format from Gemini API');
       }
 
       const textContent = data.candidates[0].content.parts[0].text;
-      console.log('Raw Gemini response:', textContent.substring(0, 200) + '...');
-      
       return this.parseGeminiResponse(textContent);
     } catch (error) {
       if (retryCount < 2) {
@@ -85,26 +79,16 @@ export class ResumeAnalyzer {
 
   private parseGeminiResponse(textContent: string): any {
     try {
-      // First try direct parsing
       return JSON.parse(textContent);
-    } catch (parseError) {
-      // Remove markdown code blocks
+    } catch {
       let cleanContent = textContent.replace(/```json\n?/g, '').replace(/\n?```/g, '');
-      
       try {
         return JSON.parse(cleanContent);
-      } catch (error) {
-        // Extract JSON object from text
+      } catch {
         const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          try {
-            return JSON.parse(jsonMatch[0]);
-          } catch (error) {
-            console.error('Failed to parse extracted JSON:', jsonMatch[0]);
-          }
+          return JSON.parse(jsonMatch[0]);
         }
-        
-        console.error('Could not parse JSON from Gemini response:', textContent);
         throw new Error("Could not parse JSON from Gemini response");
       }
     }
@@ -132,23 +116,9 @@ Return ONLY this JSON structure (no additional text, explanation, or markdown):
 }`;
 
     const result = await this.callGeminiAPI(prompt);
-    
+
     if (!this.isValidDetailedAnalysis(result)) {
-      console.error('Invalid detailed analysis format:', result);
-      // Return fallback data
-      return {
-        impactScore: 70,
-        clarityScore: 75,
-        achievementScore: 70,
-        skillsRelevance: 80,
-        overallScore: 74,
-        sectionScores: {
-          summary: 75,
-          experience: 70,
-          education: 75,
-          skills: 80
-        }
-      };
+      throw new Error("Gemini returned invalid detailed analysis format");
     }
 
     return result;
@@ -179,24 +149,13 @@ Return ONLY this JSON structure (no additional text or markdown):
   ]
 }`;
 
-    try {
-      const result = await this.callGeminiAPI(prompt);
-      
-      // Handle different response formats
-      if (Array.isArray(result)) {
-        return { improvements: result };
-      }
-      
-      if (result.improvements && Array.isArray(result.improvements)) {
-        return result;
-      }
-      
-      console.error('Invalid improvements format:', result);
-      return { improvements: [] };
-    } catch (error) {
-      console.error('Error generating improvements:', error);
-      return { improvements: [] };
+    const result = await this.callGeminiAPI(prompt);
+
+    if (!result.improvements || !Array.isArray(result.improvements)) {
+      throw new Error("Gemini returned invalid improvements format");
     }
+
+    return result;
   }
 
   private async generateInsights(resumeText: string, analysis: DetailedAnalysis): Promise<Insight[]> {
@@ -219,19 +178,13 @@ Return ONLY this JSON array structure (no additional text or markdown):
   }
 ]`;
 
-    try {
-      const result = await this.callGeminiAPI(prompt);
-      
-      if (Array.isArray(result)) {
-        return result;
-      }
-      
-      console.error('Invalid insights format:', result);
-      return [];
-    } catch (error) {
-      console.error('Error generating insights:', error);
-      return [];
+    const result = await this.callGeminiAPI(prompt);
+
+    if (!Array.isArray(result)) {
+      throw new Error("Gemini returned invalid insights format");
     }
+
+    return result;
   }
 
   private async analyzeMarketAlignment(resumeText: string): Promise<MarketAlignmentData> {
@@ -244,34 +197,16 @@ Return ONLY this JSON structure (no additional text or markdown):
   "roleAlignment": 75,
   "missingKeywords": ["cloud computing", "agile methodology", "data analysis"],
   "industryTrends": ["Remote work capabilities", "Digital transformation", "AI integration"],
-  "recommendedSkills": ["Python", "AWS", "Machine Learning"]
+  "recommendedSkills": ["AWS", "Machine Learning"]
 }`;
 
-    try {
-      const result = await this.callGeminiAPI(prompt);
-      
-      if (!this.isValidMarketAlignment(result)) {
-        console.error('Invalid market alignment format:', result);
-        // Return fallback data
-        return {
-          roleAlignment: 70,
-          missingKeywords: ["leadership", "project management", "communication"],
-          industryTrends: ["Digital transformation", "Remote collaboration", "Automation"],
-          recommendedSkills: ["Data analysis", "Communication", "Problem solving"]
-        };
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Error analyzing market alignment:', error);
-      // Return fallback data
-      return {
-        roleAlignment: 70,
-        missingKeywords: ["leadership", "project management", "communication"],
-        industryTrends: ["Digital transformation", "Remote collaboration", "Automation"],
-        recommendedSkills: ["Data analysis", "Communication", "Problem solving"]
-      };
+    const result = await this.callGeminiAPI(prompt);
+
+    if (!this.isValidMarketAlignment(result)) {
+      throw new Error("Gemini returned invalid market alignment format");
     }
+
+    return result;
   }
 
   private isValidDetailedAnalysis(analysis: any): analysis is DetailedAnalysis {
@@ -282,8 +217,7 @@ Return ONLY this JSON structure (no additional text or markdown):
       typeof analysis.achievementScore === 'number' &&
       typeof analysis.skillsRelevance === 'number' &&
       typeof analysis.overallScore === 'number' &&
-      typeof analysis.sectionScores === 'object' &&
-      analysis.sectionScores !== null
+      typeof analysis.sectionScores === 'object'
     );
   }
 
