@@ -4,6 +4,7 @@ import axios from 'axios'
 import 'react-toastify/dist/ReactToastify.css'
 import UploadPage from './pages/UploadPage'
 import AnalysisPage from './pages/AnalysisPage'
+import HistoryPage from './pages/HistoryPage';
 
 // Types
 interface User {
@@ -143,12 +144,12 @@ const Review = () => (
   </div>
 )
 
-const History = () => (
-  <div className="max-w-4xl mx-auto p-6">
-    <h1 className="text-3xl font-bold mb-6">Review History</h1>
-    {/* History component will go here */}
-  </div>
-)
+// const History = () => (
+//   <div className="max-w-4xl mx-auto p-6">
+//     <h1 className="text-3xl font-bold mb-6">Review History</h1>
+//     {/* History component will go here */}
+//   </div>
+// )
 
 const Admin = () => (
   <div className="max-w-4xl mx-auto p-6">
@@ -222,7 +223,7 @@ function App() {
             <Route path="/" element={user ? <UploadPage /> : <Navigate to="/login" />} />
             <Route path="/review" element={user ? <Review /> : <Navigate to="/login" />} />
             <Route path="/analysis/resume/:resumeId" element={user ? <AnalysisPage /> : <Navigate to="/login" />} />
-            <Route path="/history" element={user ? <History /> : <Navigate to="/login" />} />
+            <Route path="/history" element={user ? <HistoryPage /> : <Navigate to="/login" />} />
             <Route path="/admin" element={user?.isAdmin ? <Admin /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
