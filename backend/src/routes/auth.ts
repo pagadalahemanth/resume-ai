@@ -2,18 +2,28 @@ import { Router } from 'express'
 import passport from 'passport'
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20'
 import jwt from 'jsonwebtoken'
-import { prisma } from '../lib/prisma.js' // Use the existing prisma instance
+import { prisma } from '../lib/prisma.js'
 
 const router = Router()
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
+// Update callback URL for production
+const getCallbackURL = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/auth/google/callback`
+      : `${process.env.FRONTEND_URL?.replace('//', '//api.')}/api/auth/google/callback`
+  }
+  return "http://localhost:3000/api/auth/google/callback"
+}
+
 // Google OAuth2 configuration
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID!,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-  callbackURL: "http://localhost:3000/auth/google/callback",
+  callbackURL: getCallbackURL(),
   scope: ['email', 'profile']
 }, async (accessToken, refreshToken, profile, done) => {
   console.log('Google OAuth callback received:', { 
